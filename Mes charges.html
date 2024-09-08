@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>Gestion des Dépenses</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            
+        }
+
+        h1 {
+            font-size: 2em;
+            color: #333;
+        }
+
+        main {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        section {
+            margin-bottom: 20px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            background-color: #f9f9f9;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #remaining-income {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: green;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <section class="income-section">
+            <h2>Salaire mensuel</h2>
+            <input type="number" id="income" placeholder="Entrez votre salaire">
+            <button onclick="updateIncome()">Enregistrer</button>
+        </section>
+
+        <section class="expense-section">
+            <h2>Ajouter une dépense</h2>
+            <input type="text" id="expense-name" placeholder="Nom de la dépense">
+            <input type="number" id="expense-amount" placeholder="Montant de la dépense">
+            <select id="expense-category">
+                <option value="maison">Maison</option>
+                <option value="abonnements">Abonnements</option>
+                <option value="voiture">Voiture</option>
+                <option value="loisirs">Loisirs</option>
+                <option value="autre">Autre</option>
+            </select>
+            <button onclick="addExpense()">Ajouter</button>
+        </section>
+
+        <section class="summary-section">
+            <h2>Résumé des Dépenses</h2>
+            <ul id="expense-list"></ul>
+        </section>
+
+        <section class="remaining-income-section">
+            <h2 style="text-align:center">Votre pouvoir d'achat restant</h2>
+            <p id="remaining-income">0 €</p>
+        </section>
+    </main>
+
+    <script>
+        let income = 0;
+let expenses = [];
+let sessionId = generateSessionId(); // Générer un ID unique pour la session
+
+// Chargement des données sauvegardées si elles existent
+window.onload = () => {
+    loadData();
+};
+
+function generateSessionId() {
+    return 'session_' + new Date().getTime(); // ID unique basé sur le timestamp
+}
+
+function updateIncome() {
+    const incomeInput = document.getElementById('income');
+    income = parseFloat(incomeInput.value);
+    saveData();  // Sauvegarde après modification du salaire
+    updateRemainingIncome();
+}
+
+function addExpense() {
+    const expenseName = document.getElementById('expense-name').value;
+    const expenseAmount = parseFloat(document.getElementById('expense-amount').value);
+    const expenseCategory = document.getElementById('expense-category').value;
+
+    if (expenseName && expenseAmount) {
+        expenses.push({
+            name: expenseName,
+            amount: expenseAmount,
+            category: expenseCategory
+        });
+
+        // Reset the input fields after adding the expense
+        document.getElementById('expense-name').value = '';
+        document.getElementById('expense-amount').value = '';
+        document.getElementById('expense-category').value = 'maison'; // Resetting to the first option (optional)
+
+        saveData(); // Save the data after adding the expense
+        displayExpenses();
+        updateRemainingIncome();
+    }
+}
+
+function displayExpenses() {
+    const expenseList = document.getElementById('expense-list');
+    expenseList.innerHTML = '';
+
+    expenses.forEach((expense, index) => {
+        const listItem = document.createElement('li');
+        listItem.innerHTML = `
+            ${expense.name} - ${expense.amount} € (${expense.category})
+            <span style="float: right;">
+                <i class="fas fa-pen" onclick="editExpense(${index})" style="cursor:pointer; margin-right: 10px;"></i>
+                <i class="fas fa-trash" onclick="deleteExpense(${index})" style="cursor:pointer;"></i>
+            </span>
+        `;
+        expenseList.appendChild(listItem);
+    });
+}
+
+function updateRemainingIncome() {
+    const totalExpenses = expenses.reduce((total, expense) => total + expense.amount, 0);
+    const remainingIncome = income - totalExpenses;
+
+    document.getElementById('remaining-income').textContent = `${remainingIncome} €`;
+}
+
+// Sauvegarde des données dans LocalStorage
+function saveData() {
+    const data = {
+        sessionId: sessionId,
+        date: new Date().toLocaleString(),
+        income: income,
+        expenses: expenses
+    };
+
+    localStorage.setItem('expenseData', JSON.stringify(data));
+}
+
+// Chargement des données à partir de LocalStorage
+function loadData() {
+    const savedData = localStorage.getItem('expenseData');
+
+    if (savedData) {
+        const data = JSON.parse(savedData);
+        sessionId = data.sessionId;  // Charger l'ID de la session existante
+        income = data.income;
+        expenses = data.expenses;
+
+        document.getElementById('income').value = income;
+        displayExpenses();
+        updateRemainingIncome();
+    }
+}
+
+// Fonction pour supprimer une dépense
+function deleteExpense(index) {
+    expenses.splice(index, 1); // Supprimer l'élément à l'index donné
+    saveData(); // Sauvegarder les changements
+    displayExpenses(); // Rafraîchir la liste
+    updateRemainingIncome(); // Mettre à jour le pouvoir d'achat
+}
+
+// Fonction pour modifier une dépense (seulement le montant)
+function editExpense(index) {
+    const expense = expenses[index];
+
+    // Afficher une boîte de dialogue pour modifier le montant
+    const newAmount = prompt(`Modifier le montant pour ${expense.name}:`, expense.amount);
+
+    // Si l'utilisateur a saisi une nouvelle valeur et que celle-ci est valide
+    if (newAmount !== null && !isNaN(newAmount) && newAmount.trim() !== '') {
+        expenses[index].amount = parseFloat(newAmount); // Mettre à jour le montant
+        saveData(); // Sauvegarder les changements
+        displayExpenses(); // Rafraîchir la liste
+        updateRemainingIncome(); // Mettre à jour le pouvoir d'achat
+    }
+}
+    </script>
+</body>
+</html>
